@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<title>Timer de Blinds — Bounty Poker</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0f1115"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Timer Bounty"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='38' fill='%230f1115'/%3E%3Ctext x='90' y='130' font-size='110' text-anchor='middle'%3E%E2%8F%B1%EF%B8%8F%3C/text%3E%3C/svg%3E"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%8F%B1%EF%B8%8F%3C/text%3E%3C/svg%3E"/>
+
+<style>
+  :root{
+    --bg:#0f1115; --surface1:#171a21; --surface2:#1e222b; --border:#2a2f3a;
+    --text:#eef0f4; --text-secondary:#a8adb8; --text-muted:#767c8a;
+    --accent:#4f8cff; --success:#3ecf8e; --danger:#ff6b6b;
+    --radius:10px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html, body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overscroll-behavior: contain;
+  }
+  body{
+    padding:16px; padding-top:calc(16px + var(--safe-top));
+    padding-bottom:calc(40px + var(--safe-bottom));
+    max-width:640px; margin:0 auto;
+    min-height: 100vh;
+  }
+  h1{font-size:20px;font-weight:600;margin:8px 0 20px;text-align:center;}
+  h2{font-size:16px;font-weight:600;margin:18px 0 6px;}
+  .hint{font-size:12px;color:var(--text-muted);margin:0 0 10px;}
+  section{margin-bottom:20px;}
+
+  label{font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;}
+  input{
+    width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-size:16px; margin-bottom:8px;
+  }
+  input:focus{outline:1px solid var(--accent);}
+
+  button{
+    background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:12px 14px; font-size:15px; font-weight:500; cursor:pointer; width:100%;
+    font-family:inherit;
+  }
+  button:active{opacity:.85;}
+  button.secondary{background:var(--surface2); color:var(--text-secondary); width:auto; padding:7px 12px; font-size:13px;}
+  button.warn{background:var(--danger);}
+  button.play{background:var(--success); color:#0f1115;}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  /* Timer */
+  .timer-box{
+    background:var(--surface1); border:1px solid var(--border); border-radius:14px;
+    padding:22px 16px; text-align:center; margin-bottom:14px;
+  }
+  .timer-level-label{font-size:13px;color:var(--text-secondary);margin:0 0 4px;}
+  .timer-clock{
+    font-size:56px; font-weight:700; font-family:ui-monospace,Menlo,monospace;
+    margin:4px 0; letter-spacing:2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-blinds{font-size:24px; font-weight:600; margin:6px 0;}
+  .timer-ante{font-size:13px;color:var(--text-muted);min-height:16px;}
+  .timer-next{font-size:12px;color:var(--text-muted);margin-top:8px;}
+
+  .timer-controls{display:flex;gap:8px;margin-top:14px;}
+  .timer-controls button{flex:1;}
+
+  .addLevelForm{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;}
+  .addLevelForm input{margin-bottom:0;font-size:14px;padding:8px;}
+  .addLevelForm label{font-size:11px;}
+
+  .level-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+  .level-row{
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--surface1);border-radius:8px;padding:10px 12px;
+    font-size:13px;gap:8px;
+    border:2px solid transparent;
+  }
+  .level-row.break{background:#2a2110;}
+  .level-row.active{border-color:var(--accent);}
+  .level-row .idx{color:var(--text-muted);width:24px;flex:none;}
+  .level-row .lvltxt{flex:1;}
+  .level-row button{padding:6px 10px;font-size:12px;width:auto;}
+
+  .empty{font-size:13px;color:var(--text-muted);text-align:center;padding:20px 0;}
+
+  .preset-controls{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .preset-controls input{flex:1;min-width:120px;margin-bottom:0;}
+  .preset-controls button{width:auto;padding:10px 14px;font-size:13px;}
+
+  .preset-item{
+    background:var(--surface1);border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;
+    margin-bottom:6px;
+  }
+  .preset-item .preset-info{flex:1;min-width:0;}
+  .preset-item .preset-name{font-size:14px;font-weight:500;}
+  .preset-item .preset-desc{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .preset-actions{display:flex;gap:4px;flex:none;}
+  .preset-actions button{padding:5px 9px;font-size:11px;width:auto;}
+
+  /* Ajustes para PWA em tela cheia */
+  @media (display-mode: standalone) {
+    h1 { font-size:18px; }
+    .timer-clock { font-size:64px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>⏱️ Timer de Blinds</h1>
+
+<!-- ====================== PRESETS ====================== -->
+<section>
+  <h2>💾 Presets</h2>
+  <p class="hint">Salve estruturas de blinds para reutilizar.</p>
+  <div class="preset-controls">
+    <input type="text" id="presetName" placeholder="Nome do preset"/>
+    <button id="savePreset" class="play">💾 Salvar</button>
+  </div>
+  <div class="preset-controls">
+    <button id="clearAllData" class="warn" style="flex:1;">🗑️ Limpar tudo</button>
+  </div>
+  <div id="presetList" class="level-list"></div>
+</section>
+
+<!-- ====================== TIMER ====================== -->
+<section>
+  <h2>⏱️ Timer</h2>
+  <div class="timer-box">
+    <p class="timer-level-label" id="timerLevelLabel">Sem níveis cadastrados</p>
+    <p class="timer-clock" id="timerClock">00:00</p>
+    <p class="timer-blinds" id="timerBlinds">—</p>
+    <p class="timer-ante" id="timerAnte"></p>
+    <p class="timer-next" id="timerNext"></p>
+  </div>
+  <div class="timer-controls">
+    <button class="play" id="btnPlay">▶ Play</button>
+    <button id="btnPause">⏸ Pausar</button>
+    <button class="warn" id="btnReset">⟲ Reset</button>
+  </div>
+  <div class="timer-controls" style="margin-top:8px;">
+    <button id="btnPrevLevel" class="secondary" style="flex:1;">◀ Anterior</button>
+    <button id="btnNextLevel" class="secondary" style="flex:1;">Próximo ▶</button>
+  </div>
+</section>
+
+<!-- ====================== ESTRUTURA ====================== -->
+<section>
+  <h2>Estrutura de blinds</h2>
+  <div class="addLevelForm">
+    <div><label>Small</label><input type="number" id="lvlSmall" value="25" min="0"/></div>
+    <div><label>Big</label><input type="number" id="lvlBig" value="50" min="0"/></div>
+    <div><label>Ante</label><input type="number" id="lvlAnte" value="0" min="0"/></div>
+    <div><label>Min</label><input type="number" id="lvlDuration" value="15" min="1"/></div>
+  </div>
+  <button id="addLevel" style="margin-top:8px;">+ Nível de blind</button>
+  <div class="row2" style="margin-top:8px;">
+    <div><label>Intervalo (min)</label><input type="number" id="breakDuration" value="10" min="1"/></div>
+    <div style="display:flex;align-items:flex-end;">
+      <button id="addBreak" class="secondary" style="width:100%;">+ Intervalo</button>
+    </div>
+  </div>
+  <div id="levelList" class="level-list"></div>
+</section>
+
+<script>
+/* ============================================================
+   ESTADO
+============================================================ */
+let levels = [];
+let currentLevelIndex = 0;
+let remainingSeconds = 0;
+let timerRunning = false;
+let timerHandle = null;
+let levelNextId = 1;
+let presets = [];
+
+/* ============================================================
+   UTILITÁRIOS
+============================================================ */
+function formatTime(s){
+  s = Math.max(0, Math.round(s));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+function playBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
+    o.start();
+    o.stop(ctx.currentTime + 0.35);
+  }catch(e){}
+}
+
+/* ============================================================
+   RENDER
+============================================================ */
+function renderLevels(){
+  const el = document.getElementById('levelList');
+  if(levels.length === 0){
+    el.innerHTML = '<p class="empty">Nenhum nível cadastrado ainda.</p>';
+    return;
+  }
+  el.innerHTML = levels.map((lv, i)=>{
+    const cls = 'level-row' + (lv.type==='break'?' break':'') + (i===currentLevelIndex?' active':'');
+    const txt = lv.type==='break'
+      ? 'Intervalo — ' + lv.duration + ' min'
+      : 'SB ' + lv.small + ' / BB ' + lv.big + (lv.ante>0 ? ' / Ante '+lv.ante : '') + ' — ' + lv.duration + ' min';
+    return '<div class="'+cls+'">'
+      + '<span class="idx">'+(i+1)+'</span>'
+      + '<span class="lvltxt">'+txt+'</span>'
+      + '<button class="secondary" data-del-level="'+lv.id+'">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function renderTimerDisplay(){
+  const lv = levels[currentLevelIndex];
+  const lblLevel = document.getElementById('timerLevelLabel');
+  const lblClock = document.getElementById('timerClock');
+  const lblBlinds = document.getElementById('timerBlinds');
+  const lblAnte = document.getElementById('timerAnte');
+  const lblNext = document.getElementById('timerNext');
+
+  if(!lv){
+    lblLevel.textContent = 'Sem níveis cadastrados';
+    lblClock.textContent = '00:00';
+    lblBlinds.textContent = '—';
+    lblAnte.textContent = '';
+    lblNext.textContent = '';
+    return;
+  }
+
+  lblLevel.textContent = lv.type==='break' ? 'Intervalo' : 'Nível ' + (currentLevelIndex + 1);
+  lblClock.textContent = formatTime(remainingSeconds);
+  lblBlinds.textContent = lv.type==='break' ? 'Pausa' : (lv.small + ' / ' + lv.big);
+  lblAnte.textContent = (lv.type !== 'break' && lv.ante > 0) ? 'Ante ' + lv.ante : '';
+
+  const next = levels[currentLevelIndex + 1];
+  lblNext.textContent = next
+    ? ('Próximo: ' + (next.type==='break' ? 'Intervalo' : ('SB ' + next.small + ' / BB ' + next.big)))
+    : 'Último nível';
+}
+
+function renderPresets(){
+  const el = document.getElementById('presetList');
+  if(presets.length === 0){
+    el.innerHTML = '<p class="empty">Nenhum preset salvo.</p>';
+    return;
+  }
+  el.innerHTML = presets.map((preset, idx)=>{
+    const lvlCount = (preset.state.levels || []).length;
+    return '<div class="preset-item">'
+      + '<div class="preset-info">'
+      + '<div class="preset-name">'+preset.name+'</div>'
+      + '<div class="preset-desc">'+lvlCount+' níveis · '+new Date(preset.date).toLocaleDateString('pt-BR')+'</div>'
+      + '</div>'
+      + '<div class="preset-actions">'
+      + '<button class="play" data-load-preset="'+idx+'">Carregar</button>'
+      + '<button class="warn" data-del-preset="'+idx+'">✕</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ============================================================
+   PERSISTÊNCIA
+============================================================ */
+function saveTimerState(){
+  try{
+    localStorage.setItem('bountyTimerState', JSON.stringify({
+      levels, currentLevelIndex, remainingSeconds, levelNextId
+    }));
+  }catch(e){}
+}
+
+function savePresets(){
+  try{
+    localStorage.setItem('bountyPresets', JSON.stringify(presets));
+  }catch(e){}
+}
+
+function loadFromStorage(){
+  try{
+    const raw = localStorage.getItem('bountyTimerState');
+    if(raw){
+      const s = JSON.parse(raw);
+      levels = s.levels || [];
+      currentLevelIndex = s.currentLevelIndex || 0;
+      remainingSeconds = s.remainingSeconds || 0;
+      levelNextId = s.levelNextId || 1;
+      if(levels.length && currentLevelIndex >= levels.length){
+        currentLevelIndex = levels.length - 1;
+      }
+    }
+    const rawPresets = localStorage.getItem('bountyPresets');
+    if(rawPresets) presets = JSON.parse(rawPresets);
+  }catch(e){}
+}
+
+/* ============================================================
+   LÓGICA DO TIMER
+============================================================ */
+function loadLevel(i, resetSeconds){
+  if(levels.length === 0){
+    currentLevelIndex = 0;
+    remainingSeconds = 0;
+    renderLevels(); renderTimerDisplay(); saveTimerState();
+    return;
+  }
+  if(i < 0) i = 0;
+  if(i >= levels.length) i = levels.length - 1;
+  currentLevelIndex = i;
+  const lv = levels[currentLevelIndex];
+  if(lv && resetSeconds) remainingSeconds = lv.duration * 60;
+  renderLevels();
+  renderTimerDisplay();
+  saveTimerState();
+}
+
+function tick(){
+  if(remainingSeconds <= 0){
+    if(currentLevelIndex < levels.length - 1){
+      playBeep();
+      loadLevel(currentLevelIndex + 1, true);
+    } else {
+      pauseTimer();
+      playBeep();
+    }
+    return;
+  }
+  remainingSeconds -= 1;
+  renderTimerDisplay();
+}
+
+function startTimer(){
+  if(levels.length === 0) return;
+  if(remainingSeconds <= 0){
+    remainingSeconds = levels[currentLevelIndex].duration * 60;
+  }
+  if(timerRunning) return;
+  timerRunning = true;
+  timerHandle = setInterval(tick, 1000);
+}
+
+function pauseTimer(){
+  timerRunning = false;
+  if(timerHandle) clearInterval(timerHandle);
+  timerHandle = null;
+  saveTimerState();
+}
+
+function resetTimer(){
+  pauseTimer();
+  loadLevel(0, true);
+}
+
+/* ============================================================
+   EVENTOS
+============================================================ */
+document.getElementById('addLevel').addEventListener('click', ()=>{
+  const small = parseFloat(document.getElementById('lvlSmall').value) || 0;
+  const big = parseFloat(document.getElementById('lvlBig').value) || 0;
+  const ante = parseFloat(document.getElementById('lvlAnte').value) || 0;
+  const dur = parseFloat(document.getElementById('lvlDuration').value) || 15;
+  if(dur <= 0){ alert('Duração deve ser maior que 0.'); return; }
+  levels.push({id: levelNextId++, type: 'blind', small, big, ante, duration: dur});
+  if(levels.length === 1) loadLevel(0, true);
+  else { renderLevels(); saveTimerState(); }
+});
+
+document.getElementById('addBreak').addEventListener('click', ()=>{
+  const dur = parseFloat(document.getElementById('breakDuration').value) || 10;
+  if(dur <= 0){ alert('Duração deve ser maior que 0.'); return; }
+  levels.push({id: levelNextId++, type: 'break', duration: dur});
+  if(levels.length === 1) loadLevel(0, true);
+  else { renderLevels(); saveTimerState(); }
+});
+
+document.getElementById('btnPlay').addEventListener('click', startTimer);
+document.getElementById('btnPause').addEventListener('click', pauseTimer);
+document.getElementById('btnReset').addEventListener('click', resetTimer);
+document.getElementById('btnPrevLevel').addEventListener('click', ()=>{
+  pauseTimer(); loadLevel(currentLevelIndex - 1, true);
+});
+document.getElementById('btnNextLevel').addEventListener('click', ()=>{
+  pauseTimer(); loadLevel(currentLevelIndex + 1, true);
+});
+
+/* Delegação para botões dinâmicos */
+document.body.addEventListener('click', (ev)=>{
+  const delLevel = ev.target.closest('[data-del-level]');
+  if(delLevel){
+    const id = parseInt(delLevel.getAttribute('data-del-level'));
+    levels = levels.filter(l => l.id !== id);
+    if(currentLevelIndex >= levels.length){
+      currentLevelIndex = Math.max(0, levels.length - 1);
+    }
+    if(levels.length === 0){
+      remainingSeconds = 0;
+      pauseTimer();
+    } else {
+      remainingSeconds = levels[currentLevelIndex].duration * 60;
+    }
+    renderLevels(); renderTimerDisplay(); saveTimerState();
+    return;
+  }
+
+  const loadPreset = ev.target.closest('[data-load-preset]');
+  if(loadPreset){
+    const idx = parseInt(loadPreset.getAttribute('data-load-preset'));
+    const preset = presets[idx];
+    if(!preset) return;
+    pauseTimer();
+    levels = JSON.parse(JSON.stringify(preset.state.levels || []));
+    levelNextId = preset.state.levelNextId || (levels.length + 1);
+    currentLevelIndex = 0;
+    remainingSeconds = levels.length ? levels[0].duration * 60 : 0;
+    renderLevels(); renderTimerDisplay(); saveTimerState();
+    return;
+  }
+
+  const delPreset = ev.target.closest('[data-del-preset]');
+  if(delPreset){
+    const idx = parseInt(delPreset.getAttribute('data-del-preset'));
+    if(confirm('Excluir este preset?')){
+      presets.splice(idx, 1);
+      savePresets();
+      renderPresets();
+    }
+    return;
+  }
+});
+
+/* Salvar preset */
+document.getElementById('savePreset').addEventListener('click', ()=>{
+  const name = document.getElementById('presetName').value.trim();
+  if(!name){ alert('Digite um nome para o preset.'); return; }
+  if(levels.length === 0){ alert('Nenhum nível para salvar.'); return; }
+  presets.push({
+    name,
+    date: new Date().toISOString(),
+    state: {
+      levels: JSON.parse(JSON.stringify(levels)),
+      levelNextId
+    }
+  });
+  savePresets();
+  renderPresets();
+  document.getElementById('presetName').value = '';
+});
+
+/* Limpar tudo */
+document.getElementById('clearAllData').addEventListener('click', ()=>{
+  if(!confirm('Apagar TODOS os dados (níveis e presets)?')) return;
+  pauseTimer();
+  levels = [];
+  presets = [];
+  currentLevelIndex = 0;
+  remainingSeconds = 0;
+  levelNextId = 1;
+  try{
+    localStorage.removeItem('bountyTimerState');
+    localStorage.removeItem('bountyPresets');
+  }catch(e){}
+  renderLevels(); renderTimerDisplay(); renderPresets();
+});
+
+/* Previne zoom com duplo toque em iOS */
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+/* ============================================================
+   INICIALIZAÇÃO
+============================================================ */
+loadFromStorage();
+renderLevels();
+renderTimerDisplay();
+renderPresets();
+
+/* ============================================================
+   SERVICE WORKER
+============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW falhou:', err));
+  });
+}
+</script>
+</body>
+</html>
